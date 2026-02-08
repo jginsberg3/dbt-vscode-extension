@@ -15,5 +15,3 @@ use the `manifest.json` file dbt creates to understand the dbt project DAG graph
 # to-dos
 - model name completion
 - dbt syntax completion
-- in dag graph, highlight the currently selected model
-- could dag graph be shown down in the terminal bar, not as another editor?

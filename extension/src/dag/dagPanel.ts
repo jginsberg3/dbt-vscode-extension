@@ -21,14 +21,13 @@ interface DagGraphData {
     highlightedNodeId: string | null;
 }
 
-export class DagPanel {
-    private panel: vscode.WebviewPanel | undefined;
+export class DagViewProvider implements vscode.WebviewViewProvider {
+    public static readonly viewType = 'dbtNavigator.dagView';
+
+    private view: vscode.WebviewView | undefined;
     private currentHighlightId: string | null = null;
 
-    constructor(
-        private context: vscode.ExtensionContext,
-        private projectManager: ProjectManager
-    ) {
+    constructor(private projectManager: ProjectManager) {
         projectManager.onDidChangeActiveProject(() => {
             this.refresh();
         });
@@ -37,26 +36,20 @@ export class DagPanel {
         });
     }
 
-    show(): void {
-        if (this.panel) {
-            this.panel.reveal();
-            this.refresh();
-            return;
-        }
+    resolveWebviewView(
+        webviewView: vscode.WebviewView,
+        _context: vscode.WebviewViewResolveContext,
+        _token: vscode.CancellationToken
+    ): void {
+        this.view = webviewView;
 
-        this.panel = vscode.window.createWebviewPanel(
-            'dbtDag',
-            'dbt DAG',
-            vscode.ViewColumn.Beside,
-            {
-                enableScripts: true,
-                retainContextWhenHidden: true,
-            }
-        );
+        webviewView.webview.options = {
+            enableScripts: true,
+        };
 
-        this.panel.webview.html = this.getWebviewHtml();
+        webviewView.webview.html = this.getWebviewHtml();
 
-        this.panel.webview.onDidReceiveMessage((message) => {
+        webviewView.webview.onDidReceiveMessage((message) => {
             if (message.type === 'openFile') {
                 const project = this.projectManager.getActiveProject();
                 if (project) {
@@ -66,15 +59,21 @@ export class DagPanel {
             }
         });
 
-        this.panel.onDidDispose(() => {
-            this.panel = undefined;
+        webviewView.onDidDispose(() => {
+            this.view = undefined;
+        });
+
+        webviewView.onDidChangeVisibility(() => {
+            if (webviewView.visible) {
+                this.refresh();
+            }
         });
 
         this.refresh();
     }
 
     onActiveFileChanged(fileUri: vscode.Uri): void {
-        if (!this.panel) {
+        if (!this.view || !this.view.visible) {
             return;
         }
 
@@ -95,7 +94,7 @@ export class DagPanel {
         const nodeId = node ? node.unique_id : null;
         if (nodeId !== this.currentHighlightId) {
             this.currentHighlightId = nodeId;
-            this.panel.webview.postMessage({
+            this.view.webview.postMessage({
                 type: 'highlight',
                 nodeId,
             });
@@ -103,7 +102,7 @@ export class DagPanel {
     }
 
     private refresh(): void {
-        if (!this.panel) {
+        if (!this.view || !this.view.visible) {
             return;
         }
 
@@ -111,7 +110,7 @@ export class DagPanel {
         const project = this.projectManager.getActiveProject();
 
         if (!manifest || !project) {
-            this.panel.webview.postMessage({
+            this.view.webview.postMessage({
                 type: 'noManifest',
                 projectName: project?.name ?? null,
             });
@@ -119,7 +118,7 @@ export class DagPanel {
         }
 
         const graphData = this.buildGraphData(manifest);
-        this.panel.webview.postMessage({
+        this.view.webview.postMessage({
             type: 'graphData',
             data: graphData,
         });
@@ -177,8 +176,8 @@ export class DagPanel {
             gap: 12px;
             color: var(--vscode-descriptionForeground);
         }
-        #empty-state h2 { font-size: 16px; font-weight: 500; }
-        #empty-state p { font-size: 13px; }
+        #empty-state h2 { font-size: 14px; font-weight: 500; }
+        #empty-state p { font-size: 12px; }
 
         svg {
             width: 100%;
@@ -223,7 +222,7 @@ export class DagPanel {
         }
         .dag-node text {
             fill: var(--vscode-editor-foreground);
-            font-size: 12px;
+            font-size: 11px;
             dominant-baseline: central;
             text-anchor: middle;
         }
@@ -411,11 +410,11 @@ export class DagPanel {
             });
 
             // Position nodes
-            const nodeWidth = 160;
-            const nodeHeight = 36;
-            const layerGap = 100;
-            const nodeGap = 50;
-            const padding = 40;
+            const nodeWidth = 140;
+            const nodeHeight = 30;
+            const layerGap = 80;
+            const nodeGap = 40;
+            const padding = 30;
 
             layoutData = new Map();
             layerGroups.forEach((ids, layer) => {

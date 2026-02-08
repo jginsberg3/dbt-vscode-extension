@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { ProjectManager } from './projects/projectManager';
 import { DbtDefinitionProvider } from './providers/definitionProvider';
-import { DagPanel } from './dag/dagPanel';
+import { DagViewProvider } from './dag/dagPanel';
 
 let projectManager: ProjectManager;
 
@@ -17,12 +17,13 @@ export async function activate(context: vscode.ExtensionContext) {
         )
     );
 
-    const dagPanel = new DagPanel(context, projectManager);
-
+    const dagViewProvider = new DagViewProvider(projectManager);
     context.subscriptions.push(
-        vscode.commands.registerCommand('dbt.showDag', () => {
-            dagPanel.show();
-        })
+        vscode.window.registerWebviewViewProvider(
+            DagViewProvider.viewType,
+            dagViewProvider,
+            { webviewOptions: { retainContextWhenHidden: true } }
+        )
     );
 
     context.subscriptions.push(
@@ -35,7 +36,7 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.onDidChangeActiveTextEditor((editor) => {
             if (editor) {
                 projectManager.onFileOpened(editor.document.uri);
-                dagPanel.onActiveFileChanged(editor.document.uri);
+                dagViewProvider.onActiveFileChanged(editor.document.uri);
             }
         })
     );

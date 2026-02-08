@@ -20,14 +20,29 @@
   "contributes": {
     "commands": [
       {
-        "command": "dbt.showDag",
-        "title": "dbt: Show DAG"
-      },
-      {
         "command": "dbt.switchProject",
         "title": "dbt: Switch Project"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "dbt-dag-panel",
+          "title": "dbt DAG",
+          "icon": "$(type-hierarchy)"
+        }
+      ]
+    },
+    "views": {
+      "dbt-dag-panel": [
+        {
+          "type": "webview",
+          "id": "dbtNavigator.dagView",
+          "name": "dbt DAG",
+          "icon": "$(type-hierarchy)"
+        }
+      ]
+    }
   },
   "scripts": {
     "compile": "tsc -p ./",
