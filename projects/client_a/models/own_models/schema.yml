@@ -1,0 +1,66 @@
+
+version: 2
+
+models:
+  - name: customer_data
+    description: "Data about company customers."
+    columns:
+      - name: customer_name
+        description: "Full name of the customer."
+      - name: email
+        description: "Customer's email address."
+      - name: membership_tier
+        description: "Customer's membership level (Bronze, Silver, Gold, or Platinum)."
+      - name: city
+        description: "City where the customer is located."
+      - name: state
+        description: "US state abbreviation for the customer's location."
+      - name: signup_date
+        description: "Date the customer signed up."
+
+  - name: sales_data
+    description: "Data about company sales."
+    columns:
+      - name: order_id
+        description: "Unique identifier for each order."
+      - name: customer_name
+        description: "Full name of the customer who placed the order."
+      - name: product
+        description: "Name of the product purchased."
+      - name: quantity
+        description: "Number of units purchased."
+      - name: unit_price
+        description: "Price per unit of the product."
+      - name: total_amount
+        description: "Total order amount, calculated as quantity multiplied by unit_price."
+      - name: order_date
+        description: "Date the order was placed."
+
+  - name: combined_model
+    description: "Combined data from customer_data and sales_data."
+    columns:
+      - name: order_id
+        description: "Unique identifier for each order."
+      - name: customer_name
+        description: "Full name of the customer."
+      - name: product
+        description: "Name of the product purchased."
+      - name: quantity
+        description: "Number of units purchased."
+      - name: unit_price
+        description: "Price per unit of the product."
+      - name: total_amount
+        description: "Total order amount, calculated as quantity multiplied by unit_price."
+      - name: order_date
+        description: "Date the order was placed."
+      - name: email
+        description: "Customer's email address."
+      - name: membership_tier
+        description: "Customer's membership level (Bronze, Silver, Gold, or Platinum)."
+      - name: city
+        description: "City where the customer is located."
+      - name: state
+        description: "US state abbreviation for the customer's location."
+      - name: signup_date
+        description: "Date the customer signed up."
+
