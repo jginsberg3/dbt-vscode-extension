@@ -56,6 +56,8 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
                     const filePath = path.join(project.rootPath, message.filePath);
                     vscode.window.showTextDocument(vscode.Uri.file(filePath));
                 }
+            } else if (message.type === 'runCompile') {
+                vscode.commands.executeCommand('dbt.compile');
             }
         });
 
@@ -242,6 +244,13 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         <div id="empty-state">
             <h2 id="empty-title">No DAG Available</h2>
             <p id="empty-message">Run <code>dbt compile</code> to generate the manifest.</p>
+            <button id="compile-btn" style="display:none; margin-top: 8px; padding: 6px 14px;
+                background: var(--vscode-button-background);
+                color: var(--vscode-button-foreground);
+                border: none; border-radius: 3px; cursor: pointer;
+                font-family: var(--vscode-font-family); font-size: 12px;">
+                Run dbt compile
+            </button>
         </div>
         <svg id="dag-svg" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -261,6 +270,10 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         const emptyState = document.getElementById('empty-state');
         const emptyTitle = document.getElementById('empty-title');
         const emptyMessage = document.getElementById('empty-message');
+
+        document.getElementById('compile-btn').addEventListener('click', () => {
+            vscode.postMessage({ type: 'runCompile' });
+        });
 
         let currentNodes = [];
         let currentEdges = [];
@@ -327,11 +340,15 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         function showEmpty(projectName) {
             svgEl.style.display = 'none';
             emptyState.style.display = 'flex';
+            const compileBtn = document.getElementById('compile-btn');
             if (projectName) {
                 emptyTitle.textContent = 'No DAG Available for ' + projectName;
+                emptyMessage.textContent = 'Run dbt compile to generate the manifest.';
+                compileBtn.style.display = 'inline-block';
             } else {
                 emptyTitle.textContent = 'No dbt Project Selected';
                 emptyMessage.textContent = 'Open a file in a dbt project or use the project picker.';
+                compileBtn.style.display = 'none';
             }
         }
 

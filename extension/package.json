@@ -22,8 +22,22 @@
       {
         "command": "dbt.switchProject",
         "title": "dbt: Switch Project"
+      },
+      {
+        "command": "dbt.compile",
+        "title": "dbt: Compile Project"
       }
     ],
+    "configuration": {
+      "title": "dbt Navigator",
+      "properties": {
+        "dbtNavigator.dbtCommand": {
+          "type": "string",
+          "default": "auto",
+          "description": "The command used to run dbt. Set to 'auto' (default) to search for dbt in .venv/bin, venv/bin, then fall back to PATH. Set to a custom value like '/path/to/dbt' or 'python -m dbt' to override."
+        }
+      }
+    },
     "viewsContainers": {
       "panel": [
         {

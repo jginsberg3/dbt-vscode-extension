@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { ProjectManager } from './projects/projectManager';
 import { DbtDefinitionProvider } from './providers/definitionProvider';
 import { DagViewProvider } from './dag/dagPanel';
+import { runDbtCompile } from './commands/dbtCompile';
 
 let projectManager: ProjectManager;
 
@@ -29,6 +30,21 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('dbt.switchProject', () => {
             projectManager.showProjectPicker();
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbt.compile', async () => {
+            let project = projectManager.getActiveProject();
+
+            if (!project) {
+                await projectManager.showProjectPicker();
+                project = projectManager.getActiveProject();
+            }
+
+            if (project) {
+                await runDbtCompile(project);
+            }
         })
     );
 

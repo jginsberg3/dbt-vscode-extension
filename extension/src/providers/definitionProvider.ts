@@ -25,16 +25,26 @@ export class DbtDefinitionProvider implements vscode.DefinitionProvider {
         const manifest = this.projectManager.getActiveManifest();
         if (!manifest) {
             vscode.window.showInformationMessage(
-                `No manifest found for "${project.name}". Run \`dbt compile\` to enable go-to-definition.`
-            );
+                `No manifest found for "${project.name}". Run dbt compile to enable go-to-definition.`,
+                'Run dbt compile'
+            ).then(action => {
+                if (action === 'Run dbt compile') {
+                    vscode.commands.executeCommand('dbt.compile');
+                }
+            });
             return null;
         }
 
         const node = manifest.modelsByName.get(modelName);
         if (!node) {
             vscode.window.showWarningMessage(
-                `Model "${modelName}" not found in manifest. Try running \`dbt compile\` to update.`
-            );
+                `Model "${modelName}" not found in manifest. Try running dbt compile to update.`,
+                'Run dbt compile'
+            ).then(action => {
+                if (action === 'Run dbt compile') {
+                    vscode.commands.executeCommand('dbt.compile');
+                }
+            });
             return null;
         }
 

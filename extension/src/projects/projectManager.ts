@@ -75,11 +75,10 @@ export class ProjectManager implements vscode.Disposable {
 
             const handleManifestChange = () => {
                 project.hasManifest = fs.existsSync(project.manifestPath);
-                // Only re-parse if it was already loaded (lazy loading)
-                if (project.parsedManifest) {
+                if (project.hasManifest && (project.parsedManifest || project === this.activeProject)) {
                     this.loadManifest(project);
-                    this._onDidManifestChange.fire(project);
                 }
+                this._onDidManifestChange.fire(project);
                 this.updateStatusBar();
             };
 
@@ -144,6 +143,17 @@ export class ProjectManager implements vscode.Disposable {
 
         if (selected) {
             this.setActiveProject(selected.project);
+
+            if (!selected.project.hasManifest) {
+                const action = await vscode.window.showInformationMessage(
+                    `Project "${selected.project.name}" has no manifest. Would you like to run dbt compile?`,
+                    'Run dbt compile',
+                    'Not now'
+                );
+                if (action === 'Run dbt compile') {
+                    vscode.commands.executeCommand('dbt.compile');
+                }
+            }
         }
     }
 
