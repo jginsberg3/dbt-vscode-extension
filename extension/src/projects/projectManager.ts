@@ -36,7 +36,7 @@ export class ProjectManager implements vscode.Disposable {
         // Find all dbt_project.yml files in workspace
         const projectFiles = await vscode.workspace.findFiles(
             '**/dbt_project.yml',
-            '{**/node_modules/**,**/dbt_packages/**,**/.venv/**}'
+            '{**/node_modules/**,**/dbt_packages/**,**/dbt_internal_packages/**,**/.venv/**}'
         );
 
         for (const projectFile of projectFiles) {
