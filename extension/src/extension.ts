@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { ProjectManager } from './projects/projectManager';
 import { DbtDefinitionProvider } from './providers/definitionProvider';
+import { DbtCompletionProvider } from './providers/completionProvider';
+import { DbtHoverProvider } from './providers/hoverProvider';
+import { DbtYamlCompletionProvider } from './providers/yamlCompletionProvider';
 import { DagViewProvider } from './dag/dagPanel';
 import { runDbtCompile } from './commands/dbtCompile';
 
@@ -15,6 +18,31 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerDefinitionProvider(
             [{ language: 'sql' }, { language: 'jinja-sql' }],
             definitionProvider
+        )
+    );
+
+    const completionProvider = new DbtCompletionProvider(projectManager);
+    context.subscriptions.push(
+        vscode.languages.registerCompletionItemProvider(
+            [{ language: 'sql' }, { language: 'jinja-sql' }],
+            completionProvider,
+            "'", '"', '{'
+        )
+    );
+
+    const hoverProvider = new DbtHoverProvider(projectManager);
+    context.subscriptions.push(
+        vscode.languages.registerHoverProvider(
+            [{ language: 'sql' }, { language: 'jinja-sql' }],
+            hoverProvider
+        )
+    );
+
+    const yamlCompletionProvider = new DbtYamlCompletionProvider(projectManager);
+    context.subscriptions.push(
+        vscode.languages.registerCompletionItemProvider(
+            [{ language: 'yaml' }, { language: 'yml' }],
+            yamlCompletionProvider
         )
     );
 

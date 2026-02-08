@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { Manifest, ManifestNode, ParsedManifest } from './types';
+import { Manifest, ManifestNode, ManifestSource, ParsedManifest } from './types';
 
 export function parseManifest(manifestPath: string): ParsedManifest {
     const raw = fs.readFileSync(manifestPath, 'utf-8');
@@ -36,6 +36,27 @@ export function parseManifest(manifestPath: string): ParsedManifest {
         }
     }
 
+    // Parse sources
+    const sourcesByName = new Map<string, ManifestSource[]>();
+    const allSources: ManifestSource[] = [];
+
+    for (const [, rawSource] of Object.entries(manifest.sources)) {
+        const source: ManifestSource = {
+            unique_id: (rawSource as any).unique_id ?? '',
+            source_name: (rawSource as any).source_name ?? '',
+            name: (rawSource as any).name ?? '',
+            description: (rawSource as any).description ?? '',
+            database: (rawSource as any).database ?? '',
+            schema: (rawSource as any).schema ?? '',
+            columns: (rawSource as any).columns ?? {},
+        };
+        allSources.push(source);
+
+        const existing = sourcesByName.get(source.source_name) ?? [];
+        existing.push(source);
+        sourcesByName.set(source.source_name, existing);
+    }
+
     return {
         projectName: manifest.metadata.project_name,
         modelsByName,
@@ -43,6 +64,8 @@ export function parseManifest(manifestPath: string): ParsedManifest {
         parentMap,
         childMap,
         allModels,
+        sourcesByName,
+        allSources,
     };
 }
 

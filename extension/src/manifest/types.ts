@@ -1,3 +1,9 @@
+export interface ManifestColumn {
+    name: string;
+    description: string;
+    data_type: string | null;
+}
+
 export interface ManifestNode {
     unique_id: string;
     name: string;
@@ -16,6 +22,9 @@ export interface ManifestNode {
         [key: string]: unknown;
     };
     description: string;
+    columns: Record<string, ManifestColumn>;
+    database: string;
+    schema: string;
 }
 
 export interface ManifestRef {
@@ -30,12 +39,22 @@ export interface ManifestMetadata {
     [key: string]: unknown;
 }
 
+export interface ManifestSource {
+    unique_id: string;
+    source_name: string;
+    name: string;
+    description: string;
+    database: string;
+    schema: string;
+    columns: Record<string, ManifestColumn>;
+}
+
 export interface Manifest {
     metadata: ManifestMetadata;
     nodes: Record<string, ManifestNode>;
     parent_map: Record<string, string[]>;
     child_map: Record<string, string[]>;
-    sources: Record<string, ManifestNode>;
+    sources: Record<string, Record<string, unknown>>;
 }
 
 export interface ParsedManifest {
@@ -45,6 +64,8 @@ export interface ParsedManifest {
     parentMap: Map<string, string[]>;
     childMap: Map<string, string[]>;
     allModels: ManifestNode[];
+    sourcesByName: Map<string, ManifestSource[]>;
+    allSources: ManifestSource[];
 }
 
 export interface DbtProject {
