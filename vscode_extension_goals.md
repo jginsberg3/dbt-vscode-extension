@@ -14,3 +14,6 @@ use the `manifest.json` file dbt creates to understand the dbt project DAG graph
 
 # to-dos
 - add copy file name keyboard shortcut
+- DAG graph visual needs to focus in more closely on the dbt model (in larger projects with lots of models)
+- scrolling and panning around the DAG graph in large projects is not great
+- dbt compile not working with my weirdly named venvs?

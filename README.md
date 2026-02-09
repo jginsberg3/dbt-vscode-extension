@@ -72,8 +72,10 @@ dbt_vscode_extension/
 ```
 
 ## Build the Extension
-1. Run `npx vsce package`
-2. Install the `.vsix` file (replace x with latest version): 
+1. Run `npm install`
+2. Run `npm run compile`
+3. Run `npx vsce package`
+4. Install the `.vsix` file (replace x with latest version): 
 ```
 code --install-extension dbt-navigator-x.x.x.vsix
 ```
