@@ -44,9 +44,13 @@ export class DbtYamlCompletionProvider implements vscode.CompletionItemProvider 
 
     private detectYamlContext(document: vscode.TextDocument, position: vscode.Position): YamlContext {
         const currentLine = document.lineAt(position.line).text;
-        const currentIndent = currentLine.search(/\S/);
+        const firstNonWhitespace = currentLine.search(/\S/);
 
-        // If cursor is at indent 0 or on a blank line at the start, it's root
+        // Use cursor column as indent when line is blank/whitespace-only,
+        // otherwise use the position of the first non-whitespace character
+        const currentIndent = firstNonWhitespace === -1 ? position.character : firstNonWhitespace;
+
+        // If cursor is at indent 0, it's root
         if (currentIndent <= 0) {
             return 'root';
         }

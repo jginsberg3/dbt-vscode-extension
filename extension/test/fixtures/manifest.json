@@ -1,0 +1,184 @@
+{
+  "metadata": {
+    "project_name": "test_project",
+    "project_id": "abc123"
+  },
+  "nodes": {
+    "model.test_project.customers": {
+      "unique_id": "model.test_project.customers",
+      "name": "customers",
+      "resource_type": "model",
+      "package_name": "test_project",
+      "original_file_path": "models/customers.sql",
+      "path": "customers.sql",
+      "fqn": ["test_project", "customers"],
+      "refs": [
+        { "name": "stg_orders", "package": null, "version": null }
+      ],
+      "depends_on": {
+        "macros": [],
+        "nodes": ["model.test_project.stg_orders"]
+      },
+      "config": {
+        "materialized": "table"
+      },
+      "description": "Final customers table with order summaries",
+      "columns": {
+        "customer_id": {
+          "name": "customer_id",
+          "description": "The primary key",
+          "data_type": "integer"
+        },
+        "customer_name": {
+          "name": "customer_name",
+          "description": "Full name of the customer",
+          "data_type": "varchar"
+        },
+        "total_orders": {
+          "name": "total_orders",
+          "description": "Lifetime order count",
+          "data_type": "integer"
+        }
+      },
+      "database": "analytics",
+      "schema": "public"
+    },
+    "model.test_project.stg_orders": {
+      "unique_id": "model.test_project.stg_orders",
+      "name": "stg_orders",
+      "resource_type": "model",
+      "package_name": "test_project",
+      "original_file_path": "models/staging/stg_orders.sql",
+      "path": "staging/stg_orders.sql",
+      "fqn": ["test_project", "staging", "stg_orders"],
+      "refs": [],
+      "depends_on": {
+        "macros": [],
+        "nodes": ["source.test_project.stripe.payments"]
+      },
+      "config": {
+        "materialized": "view"
+      },
+      "description": "Staged orders from raw data",
+      "columns": {},
+      "database": "analytics",
+      "schema": "staging"
+    },
+    "model.test_project.revenue": {
+      "unique_id": "model.test_project.revenue",
+      "name": "revenue",
+      "resource_type": "model",
+      "package_name": "test_project",
+      "original_file_path": "models/revenue.sql",
+      "path": "revenue.sql",
+      "fqn": ["test_project", "revenue"],
+      "refs": [
+        { "name": "customers", "package": null, "version": null },
+        { "name": "stg_orders", "package": null, "version": null }
+      ],
+      "depends_on": {
+        "macros": [],
+        "nodes": ["model.test_project.customers", "model.test_project.stg_orders"]
+      },
+      "config": {
+        "materialized": "incremental"
+      },
+      "description": "",
+      "columns": {},
+      "database": "analytics",
+      "schema": "public"
+    },
+    "test.test_project.not_null_customers_customer_id": {
+      "unique_id": "test.test_project.not_null_customers_customer_id",
+      "name": "not_null_customers_customer_id",
+      "resource_type": "test",
+      "package_name": "test_project",
+      "original_file_path": "tests/not_null_customers_customer_id.sql",
+      "path": "not_null_customers_customer_id.sql",
+      "fqn": ["test_project", "not_null_customers_customer_id"],
+      "refs": [
+        { "name": "customers", "package": null, "version": null }
+      ],
+      "depends_on": {
+        "macros": [],
+        "nodes": ["model.test_project.customers"]
+      },
+      "config": {},
+      "description": "",
+      "columns": {},
+      "database": "analytics",
+      "schema": "public"
+    },
+    "seed.test_project.raw_customers": {
+      "unique_id": "seed.test_project.raw_customers",
+      "name": "raw_customers",
+      "resource_type": "seed",
+      "package_name": "test_project",
+      "original_file_path": "seeds/raw_customers.csv",
+      "path": "raw_customers.csv",
+      "fqn": ["test_project", "raw_customers"],
+      "refs": [],
+      "depends_on": {
+        "macros": [],
+        "nodes": []
+      },
+      "config": {},
+      "description": "",
+      "columns": {},
+      "database": "analytics",
+      "schema": "public"
+    }
+  },
+  "sources": {
+    "source.test_project.stripe.payments": {
+      "unique_id": "source.test_project.stripe.payments",
+      "source_name": "stripe",
+      "name": "payments",
+      "resource_type": "source",
+      "description": "Raw payment events from Stripe",
+      "database": "raw_db",
+      "schema": "stripe_data",
+      "columns": {
+        "payment_id": {
+          "name": "payment_id",
+          "description": "Unique payment identifier",
+          "data_type": "varchar"
+        },
+        "amount": {
+          "name": "amount",
+          "description": "Payment amount in cents",
+          "data_type": "integer"
+        }
+      }
+    },
+    "source.test_project.stripe.customers": {
+      "unique_id": "source.test_project.stripe.customers",
+      "source_name": "stripe",
+      "name": "customers",
+      "resource_type": "source",
+      "description": "Stripe customer records",
+      "database": "raw_db",
+      "schema": "stripe_data",
+      "columns": {}
+    },
+    "source.test_project.hubspot.contacts": {
+      "unique_id": "source.test_project.hubspot.contacts",
+      "source_name": "hubspot",
+      "name": "contacts",
+      "resource_type": "source",
+      "description": "HubSpot contact data",
+      "database": "raw_db",
+      "schema": "hubspot_data",
+      "columns": {}
+    }
+  },
+  "parent_map": {
+    "model.test_project.customers": ["model.test_project.stg_orders"],
+    "model.test_project.stg_orders": ["source.test_project.stripe.payments"],
+    "model.test_project.revenue": ["model.test_project.customers", "model.test_project.stg_orders"]
+  },
+  "child_map": {
+    "model.test_project.customers": ["model.test_project.revenue", "test.test_project.not_null_customers_customer_id"],
+    "model.test_project.stg_orders": ["model.test_project.customers", "model.test_project.revenue"]
+  }
+}

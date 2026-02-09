@@ -15,3 +15,4 @@ use the `manifest.json` file dbt creates to understand the dbt project DAG graph
 # to-dos
 - add tests to the vscode extension
 - add copy file name keyboard shortcut
+- add to github

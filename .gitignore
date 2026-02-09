@@ -20,3 +20,10 @@ logs/
 # typescript
 node_modules/
 out/
+out-test/
+
+# build artifacts outside of out/
+vitest.config.js
+vitest.config.js.map
+extension/test/**/*.js
+extension/test/**/*.js.map
