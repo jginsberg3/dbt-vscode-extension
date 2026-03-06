@@ -229,7 +229,7 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         .dag-node.mat-unknown.neighbor      rect { fill: rgba(128,128,128,0.14); }
 
         /* ---- Dimmed (non-neighbor when something is selected) ---- */
-        .dag-node.dimmed { opacity: 0.15; pointer-events: none; }
+        .dag-node.dimmed { opacity: 0.15; }
 
         /* ---- Edges ---- */
         .dag-edge {
