@@ -48,6 +48,13 @@
         }
       ]
     },
+    "iconThemes": [
+      {
+        "id": "dbt-navigator-icons",
+        "label": "dbt Navigator Icons",
+        "path": "./fileicons/dbt-icon-theme.json"
+      }
+    ],
     "views": {
       "dbt-dag-panel": [
         {
