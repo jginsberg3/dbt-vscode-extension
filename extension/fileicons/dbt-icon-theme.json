@@ -1,0 +1,46 @@
+{
+    "iconDefinitions": {
+        "_dbt_sql": {
+            "iconPath": "../icons/dbt-sql.svg"
+        },
+        "_file": {
+            "iconPath": "../icons/file.svg"
+        },
+        "_folder": {
+            "iconPath": "../icons/folder.svg"
+        },
+        "_folder_open": {
+            "iconPath": "../icons/folder-open.svg"
+        }
+    },
+
+    "file": "_file",
+    "folder": "_folder",
+    "folderExpanded": "_folder_open",
+
+    "fileExtensions": {
+        "sql": "_dbt_sql"
+    },
+
+    "languageIds": {
+        "sql": "_dbt_sql",
+        "jinja-sql": "_dbt_sql"
+    },
+
+    "light": {
+        "iconDefinitions": {
+            "_dbt_sql": {
+                "iconPath": "../icons/dbt-sql-light.svg"
+            },
+            "_file": {
+                "iconPath": "../icons/file-light.svg"
+            },
+            "_folder": {
+                "iconPath": "../icons/folder-light.svg"
+            },
+            "_folder_open": {
+                "iconPath": "../icons/folder-open-light.svg"
+            }
+        }
+    }
+}

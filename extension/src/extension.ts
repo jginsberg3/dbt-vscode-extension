@@ -91,6 +91,37 @@ export async function activate(context: vscode.ExtensionContext) {
     if (vscode.window.activeTextEditor) {
         projectManager.onFileOpened(vscode.window.activeTextEditor.document.uri);
     }
+
+    promptDbtIconTheme(context);
+}
+
+const ICON_THEME_PROMPT_KEY = 'dbtNavigator.iconThemePrompted';
+const DBT_ICON_THEME_ID = 'dbt-navigator-icons';
+
+async function promptDbtIconTheme(context: vscode.ExtensionContext) {
+    if (context.globalState.get(ICON_THEME_PROMPT_KEY)) {
+        return;
+    }
+    await context.globalState.update(ICON_THEME_PROMPT_KEY, true);
+
+    const current = vscode.workspace.getConfiguration('workbench').get<string>('iconTheme');
+    if (current === DBT_ICON_THEME_ID) {
+        return;
+    }
+
+    const choice = await vscode.window.showInformationMessage(
+        'dbt Navigator: Enable dbt file icons for .sql files in the Explorer sidebar?',
+        'Enable',
+        'Not now'
+    );
+
+    if (choice === 'Enable') {
+        await vscode.workspace.getConfiguration('workbench').update(
+            'iconTheme',
+            DBT_ICON_THEME_ID,
+            vscode.ConfigurationTarget.Global
+        );
+    }
 }
 
 export function deactivate() {}

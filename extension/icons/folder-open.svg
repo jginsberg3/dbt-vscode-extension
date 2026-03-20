@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- Folder tab -->
+  <path d="M1 5.5 L1 4 Q1 3 2 3 L6 3 L7.5 5 L14 5 Q15 5 15 6 L15 6 L1 6 Z"
+        fill="#DCB67A"/>
+  <!-- Folder body (open: raised front flap) -->
+  <path d="M1 6 L1 13.5 Q1 14 2 14 L14 14 Q15 14 15 13.5 L15 7 L3 7 Z"
+        fill="#DCB67A"/>
+  <!-- Lifted flap -->
+  <path d="M1 6 L3 7 L15 7 L14 5 L7.5 5 L6 3 L2 3 Q1 3 1 4 Z"
+        fill="#C09A52"/>
+</svg>
