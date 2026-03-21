@@ -345,7 +345,9 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
     });
 
     // ---- State ----
-    var currentNodes = [];
+    var allNodes     = [];   // full graph data from manifest
+    var allEdges     = [];
+    var currentNodes = [];   // currently displayed subset (filtered when a model is selected)
     var currentEdges = [];
     var layoutData   = null;
     var fullVB       = null;
@@ -459,63 +461,66 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         svgEl.style.display = 'block';
         controlsEl.style.display = 'flex';
         legendEl.style.display = 'flex';
-        currentNodes = data.nodes;
-        currentEdges = data.edges;
-        activeNodeId = data.highlightedNodeId;
-        layoutAndRender(data.highlightedNodeId);
+        allNodes = data.nodes;
+        allEdges = data.edges;
+        applySubgraphFilter(data.highlightedNodeId);
+    }
+
+    // ---- Subgraph filtering ----
+    function getSubgraph(nodeId) {
+        // Build adjacency from the full graph
+        var adj  = new Map();
+        var radj = new Map();
+        allNodes.forEach(function(n) { adj.set(n.id, []); radj.set(n.id, []); });
+        allEdges.forEach(function(e) {
+            if (adj.has(e.source) && adj.has(e.target)) {
+                adj.get(e.source).push(e.target);
+                radj.get(e.target).push(e.source);
+            }
+        });
+
+        var visited = new Set([nodeId]);
+
+        // BFS upstream (all ancestors)
+        var queue = [nodeId];
+        while (queue.length) {
+            var cur = queue.shift();
+            (radj.get(cur) || []).forEach(function(p) {
+                if (!visited.has(p)) { visited.add(p); queue.push(p); }
+            });
+        }
+
+        // BFS downstream (all descendants)
+        queue = [nodeId];
+        while (queue.length) {
+            var cur = queue.shift();
+            (adj.get(cur) || []).forEach(function(c) {
+                if (!visited.has(c)) { visited.add(c); queue.push(c); }
+            });
+        }
+
+        return {
+            nodes: allNodes.filter(function(n) { return visited.has(n.id); }),
+            edges: allEdges.filter(function(e) { return visited.has(e.source) && visited.has(e.target); }),
+        };
+    }
+
+    function applySubgraphFilter(nodeId) {
+        activeNodeId = nodeId;
+        if (nodeId) {
+            var sub = getSubgraph(nodeId);
+            currentNodes = sub.nodes;
+            currentEdges = sub.edges;
+        } else {
+            currentNodes = allNodes;
+            currentEdges = allEdges;
+        }
+        layoutAndRender(nodeId);
     }
 
     // ---- Highlight & focus ----
     function highlightNode(nodeId) {
-        activeNodeId = nodeId;
-        var allNodes = document.querySelectorAll('.dag-node');
-        var allEdges = document.querySelectorAll('.dag-edge');
-
-        if (!nodeId) {
-            allNodes.forEach(function(el) {
-                el.classList.remove('highlighted', 'neighbor', 'dimmed');
-            });
-            allEdges.forEach(function(el) {
-                el.classList.remove('edge-highlighted', 'edge-dimmed');
-                el.setAttribute('marker-end', 'url(#arrowhead)');
-            });
-            if (fullVB) { animateVB(fullVB); }
-            return;
-        }
-
-        // Build neighbor sets
-        var parents  = new Set();
-        var children = new Set();
-        currentEdges.forEach(function(e) {
-            if (e.target === nodeId) { parents.add(e.source); }
-            if (e.source === nodeId) { children.add(e.target); }
-        });
-        var neighbors = new Set();
-        parents.forEach(function(id)  { neighbors.add(id); });
-        children.forEach(function(id) { neighbors.add(id); });
-
-        allNodes.forEach(function(el) {
-            var id = el.dataset.nodeId;
-            el.classList.remove('highlighted', 'neighbor', 'dimmed');
-            if      (id === nodeId)      { el.classList.add('highlighted'); }
-            else if (neighbors.has(id))  { el.classList.add('neighbor'); }
-            else                         { el.classList.add('dimmed'); }
-        });
-
-        allEdges.forEach(function(el) {
-            var src = el.dataset.source;
-            var tgt = el.dataset.target;
-            el.classList.remove('edge-highlighted', 'edge-dimmed');
-            if (src === nodeId || tgt === nodeId) {
-                el.classList.add('edge-highlighted');
-                el.setAttribute('marker-end', 'url(#arrowhead-hl)');
-            } else {
-                el.classList.add('edge-dimmed');
-                el.setAttribute('marker-end', 'url(#arrowhead)');
-            }
-        });
-
-        zoomToNeighborhood(nodeId, neighbors);
+        applySubgraphFilter(nodeId);
     }
 
     function zoomToNeighborhood(nodeId, neighbors) {
@@ -653,6 +658,15 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         // ---- Render ----
         rootGroup.innerHTML = '';
 
+        // Compute direct neighbors of the highlighted node for CSS styling
+        var directNeighborIds = new Set();
+        if (highlightedNodeId) {
+            currentEdges.forEach(function(e) {
+                if (e.target === highlightedNodeId) { directNeighborIds.add(e.source); }
+                if (e.source === highlightedNodeId) { directNeighborIds.add(e.target); }
+            });
+        }
+
         // Edges (drawn first, below nodes)
         var edgesEl = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         currentEdges.forEach(function(e) {
@@ -670,7 +684,12 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
                 ' C ' + cx + ' ' + y1 + ',' + cx + ' ' + y2 + ',' + x2 + ' ' + y2
             );
             pathEl.classList.add('dag-edge');
-            pathEl.setAttribute('marker-end', 'url(#arrowhead)');
+            if (highlightedNodeId && (e.source === highlightedNodeId || e.target === highlightedNodeId)) {
+                pathEl.classList.add('edge-highlighted');
+                pathEl.setAttribute('marker-end', 'url(#arrowhead-hl)');
+            } else {
+                pathEl.setAttribute('marker-end', 'url(#arrowhead)');
+            }
             pathEl.dataset.source = e.source;
             pathEl.dataset.target = e.target;
             edgesEl.appendChild(pathEl);
@@ -687,7 +706,11 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
             var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             g.classList.add('dag-node', 'mat-' + mat);
             g.dataset.nodeId = n.id;
-            if (n.id === highlightedNodeId) { g.classList.add('highlighted'); }
+            if (n.id === highlightedNodeId) {
+                g.classList.add('highlighted');
+            } else if (directNeighborIds.has(n.id)) {
+                g.classList.add('neighbor');
+            }
 
             var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('x',      pos.x - NODE_W / 2);
@@ -738,9 +761,9 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         });
         rootGroup.appendChild(nodesEl);
 
-        // Apply highlight if a node is already active
+        // Zoom: focus on selected node + direct neighbors; otherwise fit full graph
         if (highlightedNodeId) {
-            highlightNode(highlightedNodeId);
+            zoomToNeighborhood(highlightedNodeId, directNeighborIds);
         }
     }
 </script>
