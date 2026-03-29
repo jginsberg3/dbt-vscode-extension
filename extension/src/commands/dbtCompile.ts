@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { spawn } from 'child_process';
 import { DbtProject } from '../manifest/types';
 
 function findDbtCommand(projectRootPath: string): string {
@@ -52,50 +53,121 @@ function findDbtCommand(projectRootPath: string): string {
     return 'dbt';
 }
 
+let outputChannel: vscode.OutputChannel | undefined;
+
+function getOutputChannel(): vscode.OutputChannel {
+    if (!outputChannel) {
+        outputChannel = vscode.window.createOutputChannel('dbt Navigator');
+    }
+    return outputChannel;
+}
+
+interface CommandResult {
+    success: boolean;
+    exitCode: number;
+    output: string;
+}
+
+function runCommand(
+    command: string,
+    args: string[],
+    cwd: string,
+    channel: vscode.OutputChannel
+): Promise<CommandResult> {
+    return new Promise((resolve) => {
+        const outputChunks: string[] = [];
+
+        const proc = spawn(command, args, { cwd, shell: process.platform === 'win32' });
+
+        const handleData = (data: Buffer) => {
+            const text = data.toString();
+            outputChunks.push(text);
+            channel.append(text);
+        };
+
+        proc.stdout.on('data', handleData);
+        proc.stderr.on('data', handleData);
+
+        proc.on('close', (code) => {
+            const exitCode = code ?? 1;
+            resolve({
+                success: exitCode === 0,
+                exitCode,
+                output: outputChunks.join(''),
+            });
+        });
+
+        proc.on('error', (err) => {
+            const msg = `Failed to start process: ${err.message}\n`;
+            outputChunks.push(msg);
+            channel.append(msg);
+            resolve({ success: false, exitCode: 1, output: outputChunks.join('') });
+        });
+    });
+}
+
+function isDepsError(output: string): boolean {
+    const lower = output.toLowerCase();
+    return (
+        output.includes('dbt_packages') ||
+        lower.includes('run dbt deps') ||
+        lower.includes('dbt deps') ||
+        (lower.includes('package') && (lower.includes('not found') || lower.includes('not installed')))
+    );
+}
+
 export async function runDbtCompile(project: DbtProject): Promise<boolean> {
     const dbtCommand = findDbtCommand(project.rootPath);
+    const channel = getOutputChannel();
 
-    const taskDefinition: vscode.TaskDefinition = { type: 'dbtNavigator' };
+    channel.clear();
+    channel.show(true); // show without stealing focus
+    channel.appendLine(`Running dbt compile for "${project.name}"...\n`);
 
-    const shellExecution = new vscode.ShellExecution(
-        `${dbtCommand} compile`,
-        { cwd: project.rootPath }
-    );
+    const result = await runCommand(dbtCommand, ['compile'], project.rootPath, channel);
 
-    const task = new vscode.Task(
-        taskDefinition,
-        vscode.TaskScope.Workspace,
-        `dbt compile - ${project.name}`,
-        'dbt Navigator',
-        shellExecution
-    );
+    if (result.success) {
+        vscode.window.showInformationMessage(
+            `dbt compile succeeded for "${project.name}".`
+        );
+        return true;
+    }
 
-    task.presentationOptions = {
-        reveal: vscode.TaskRevealKind.Always,
-        panel: vscode.TaskPanelKind.Shared,
-        clear: true,
-    };
+    // Compile failed — check if it looks like a missing-packages error
+    if (isDepsError(result.output)) {
+        const choice = await vscode.window.showErrorMessage(
+            `dbt compile failed for "${project.name}" — it looks like packages may not be installed.`,
+            'Run dbt deps & Retry',
+            'Cancel'
+        );
 
-    return new Promise<boolean>((resolve) => {
-        const disposable = vscode.tasks.onDidEndTaskProcess((event) => {
-            if (event.execution.task === task) {
-                disposable.dispose();
-                const success = event.exitCode === 0;
+        if (choice === 'Run dbt deps & Retry') {
+            channel.appendLine('\n--- Running dbt deps ---\n');
+            const depsResult = await runCommand(dbtCommand, ['deps'], project.rootPath, channel);
 
-                if (success) {
+            if (depsResult.success) {
+                channel.appendLine('\n--- Retrying dbt compile ---\n');
+                const retryResult = await runCommand(dbtCommand, ['compile'], project.rootPath, channel);
+
+                if (retryResult.success) {
                     vscode.window.showInformationMessage(
                         `dbt compile succeeded for "${project.name}".`
                     );
-                } else {
-                    vscode.window.showErrorMessage(
-                        `dbt compile failed for "${project.name}" (exit code ${event.exitCode}). Check the terminal for details.`
-                    );
+                    return true;
                 }
-
-                resolve(success);
             }
-        });
 
-        vscode.tasks.executeTask(task);
-    });
+            vscode.window.showErrorMessage(
+                `dbt compile failed for "${project.name}". Check the dbt Navigator output for details.`
+            );
+            return false;
+        }
+
+        return false;
+    }
+
+    vscode.window.showErrorMessage(
+        `dbt compile failed for "${project.name}" (exit code ${result.exitCode}). Check the dbt Navigator output for details.`
+    );
+    return false;
 }
