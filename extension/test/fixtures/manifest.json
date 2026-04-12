@@ -50,6 +50,7 @@
       "package_name": "test_project",
       "original_file_path": "models/staging/stg_orders.sql",
       "path": "staging/stg_orders.sql",
+      "tags": ["staging"],
       "fqn": ["test_project", "staging", "stg_orders"],
       "refs": [],
       "depends_on": {

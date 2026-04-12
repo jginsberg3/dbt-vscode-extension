@@ -11,6 +11,7 @@ export interface ManifestNode {
     package_name: string;
     original_file_path: string;
     path: string;
+    tags: string[];
     fqn: string[];
     refs: ManifestRef[];
     depends_on: {
