@@ -11,6 +11,11 @@
  *   my_model+3         – model + up to 3 levels of descendants
  *   tag:my_tag         – all models carrying that tag
  *   term1 term2        – space-separated = union of both selectors
+ *
+ * NOTE: This logic is also inlined as plain JavaScript inside the webview HTML
+ * string in dagPanel.ts (search for "dbt selection syntax filter").
+ * VS Code webviews cannot import TypeScript modules, so the two copies must be
+ * kept in sync manually. If you change logic here, apply the same change there.
  */
 
 export interface FilterNode {
@@ -170,6 +175,9 @@ export function applyDbtSelection(
         const selector = parseSelectorToken(token);
         if (selector.type === 'name' && !selector.value) {
             throw new Error(`Invalid selector: "${token}"`);
+        }
+        if (selector.type === 'tag' && !selector.value) {
+            throw new Error(`Invalid selector: "${token}" — tag: requires a tag name`);
         }
         for (const id of resolveSingleSelector(selector, nodes, adj, radj)) {
             unionIds.add(id);
