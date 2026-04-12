@@ -62,15 +62,9 @@ jobs:
           TAG="${{ steps.version.outputs.tag }}"
           VSIX="dbt-navigator-${{ steps.version.outputs.version }}.vsix"
 
+          printf '## Installation\n\nDownload `%s` and install it with:\n\n```\ncode --install-extension %s\n```\n\nOr in VS Code: **Extensions → ··· → Install from VSIX...**\n' "$VSIX" "$VSIX" > release-notes.md
+
           gh release create "$TAG" "$VSIX" \
             --title "dbt Navigator $TAG" \
-            --notes "## Installation
-
-Download \`$VSIX\` and install it with:
-
-\`\`\`
-code --install-extension $VSIX
-\`\`\`
-
-Or in VS Code: **Extensions → ··· → Install from VSIX...**" \
+            --notes-file release-notes.md \
             --latest
