@@ -530,6 +530,7 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         filterBarEl.style.display = 'flex';
         allNodes = data.nodes;
         allEdges = data.edges;
+        activeNodeId = data.highlightedNodeId; // always track the current file's node
         if (filterActive && filterQuery.trim()) {
             applyDbtFilter();
         } else {
@@ -538,6 +539,8 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
     }
 
     // ---- dbt selection syntax filter ----
+    // NOTE: This logic mirrors dagFilter.ts (TypeScript version with Vitest tests).
+    // Changes here must also be applied to dagFilter.ts and vice versa.
 
     function parseSelectorToken(token) {
         token = token.trim();
@@ -627,30 +630,38 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         var tokens = query.split(/\s+/).filter(function(t) { return t.length > 0; });
         var unionIds = new Set();
         var hasError = false;
-        tokens.forEach(function(token) {
+        // Fix 5: use a for loop so we can break on the first bad token
+        for (var ti = 0; ti < tokens.length; ti++) {
+            var token = tokens[ti];
+            var selector;
             try {
-                var selector = parseSelectorToken(token);
-                if (selector.type === 'name' && !selector.value) {
-                    hasError = true;
-                    filterErrorEl.textContent = 'Invalid: ' + token;
-                    filterErrorEl.style.display = 'inline';
-                    return;
-                }
-                resolveSingleSelector(selector, adj, radj).forEach(function(id) { unionIds.add(id); });
+                selector = parseSelectorToken(token);
             } catch(err) {
                 hasError = true;
-                filterErrorEl.textContent = 'Parse error';
+                filterErrorEl.textContent = 'Invalid: "' + token + '"';
                 filterErrorEl.style.display = 'inline';
+                break;
             }
-        });
+            // Fix 7: reject empty model name or empty tag: value
+            if ((selector.type === 'name' && !selector.value) ||
+                (selector.type === 'tag'  && !selector.value)) {
+                hasError = true;
+                filterErrorEl.textContent = 'Invalid: "' + token + '"';
+                filterErrorEl.style.display = 'inline';
+                break;
+            }
+            resolveSingleSelector(selector, adj, radj).forEach(function(id) { unionIds.add(id); });
+        }
 
         var filteredNodes = allNodes.filter(function(n) { return unionIds.has(n.id); });
         var filteredEdges = allEdges.filter(function(e) { return unionIds.has(e.source) && unionIds.has(e.target); });
         currentNodes = filteredNodes;
         currentEdges = filteredEdges;
-        filterCountEl.textContent = filteredNodes.length + ' model' + (filteredNodes.length !== 1 ? 's' : '');
+        // Fix 4: hide count when there is a validation error
+        filterCountEl.textContent = hasError ? '' : filteredNodes.length + ' model' + (filteredNodes.length !== 1 ? 's' : '');
 
-        if (filteredNodes.length === 0 && !hasError) {
+        // Fix 1: always clear the canvas when nothing matched (regardless of error state)
+        if (filteredNodes.length === 0) {
             rootGroup.innerHTML = '';
             return;
         }
@@ -714,6 +725,14 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         activeNodeId = nodeId;
         if (!filterActive) {
             applySubgraphFilter(nodeId);
+        } else if (nodeId && layoutData && layoutData.has(nodeId)) {
+            // Fix 2: node is visible in the current filter result — zoom to it
+            var neighbors = new Set();
+            currentEdges.forEach(function(e) {
+                if (e.target === nodeId) { neighbors.add(e.source); }
+                if (e.source === nodeId) { neighbors.add(e.target); }
+            });
+            zoomToNeighborhood(nodeId, neighbors);
         }
     }
 

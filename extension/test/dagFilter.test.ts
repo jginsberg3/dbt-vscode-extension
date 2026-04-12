@@ -208,4 +208,8 @@ describe('applyDbtSelection', () => {
     it('throws for malformed selector (bare plus with no model)', () => {
         expect(() => applyDbtSelection('+', nodes, edges)).toThrow();
     });
+
+    it('throws for tag: with no tag name', () => {
+        expect(() => applyDbtSelection('tag:', nodes, edges)).toThrow();
+    });
 });
