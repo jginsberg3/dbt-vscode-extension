@@ -61,6 +61,16 @@ describe('parseManifest', () => {
             const revenue = manifest.modelsByName.get('revenue')!;
             expect(revenue.description).toBe('');
         });
+
+        it('preserves tags when present on a model', () => {
+            const stgOrders = manifest.modelsByName.get('stg_orders')!;
+            expect(stgOrders.tags).toEqual(['staging']);
+        });
+
+        it('defaults tags to empty array when absent from manifest', () => {
+            const customers = manifest.modelsByName.get('customers')!;
+            expect(customers.tags).toEqual([]);
+        });
     });
 
     describe('parent/child maps', () => {
