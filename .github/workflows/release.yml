@@ -10,7 +10,7 @@ jobs:
     name: Build and release .vsix
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # required for gh release create
+      contents: write   # required for gh release create and version bump push
 
     defaults:
       run:
@@ -30,32 +30,37 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Run tests
         run: npm test
 
       - name: Compile TypeScript
         run: npm run compile
 
-      - name: Read version from package.json
+      - name: Bump patch version
         id: version
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          npm version patch --no-git-tag-version
           VERSION=$(node -p "require('./package.json').version")
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to $VERSION [skip ci]"
+          git push origin HEAD:main
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
 
       - name: Package extension
         run: npm run package
 
-      - name: Create or update GitHub Release
+      - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           VSIX="dbt-navigator-${{ steps.version.outputs.version }}.vsix"
-
-          # Delete existing release for this tag if it exists (handles re-releases
-          # of the same version before a version bump).
-          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
 
           gh release create "$TAG" "$VSIX" \
             --title "dbt Navigator $TAG" \
