@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { Manifest, ManifestNode, ManifestSource, ParsedManifest } from './types';
+import { Manifest, ManifestColumn, ManifestNode, ManifestSource, ParsedManifest } from './types';
 
 export function parseManifest(manifestPath: string): ParsedManifest {
     const raw = fs.readFileSync(manifestPath, 'utf-8');
@@ -42,13 +42,13 @@ export function parseManifest(manifestPath: string): ParsedManifest {
 
     for (const [, rawSource] of Object.entries(manifest.sources)) {
         const source: ManifestSource = {
-            unique_id: (rawSource as any).unique_id ?? '',
-            source_name: (rawSource as any).source_name ?? '',
-            name: (rawSource as any).name ?? '',
-            description: (rawSource as any).description ?? '',
-            database: (rawSource as any).database ?? '',
-            schema: (rawSource as any).schema ?? '',
-            columns: (rawSource as any).columns ?? {},
+            unique_id: rawSource['unique_id'] as string ?? '',
+            source_name: rawSource['source_name'] as string ?? '',
+            name: rawSource['name'] as string ?? '',
+            description: rawSource['description'] as string ?? '',
+            database: rawSource['database'] as string ?? '',
+            schema: rawSource['schema'] as string ?? '',
+            columns: rawSource['columns'] as Record<string, ManifestColumn> ?? {},
         };
         allSources.push(source);
 
