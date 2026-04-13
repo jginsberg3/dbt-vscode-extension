@@ -13,9 +13,6 @@ export function parseManifest(manifestPath: string): ParsedManifest {
         if (node.resource_type !== 'model') {
             continue;
         }
-        if (!Array.isArray(node.tags)) {
-            node.tags = [];
-        }
         modelsByName.set(node.name, node);
         modelsByFilePath.set(node.original_file_path, node);
         allModels.push(node);
