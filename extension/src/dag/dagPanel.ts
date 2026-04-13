@@ -8,7 +8,6 @@ interface DagNode {
     name: string;
     materialized: string;
     filePath: string;
-    tags: string[];
 }
 
 interface DagEdge {
@@ -133,7 +132,6 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
             name: model.name,
             materialized: model.config.materialized ?? 'unknown',
             filePath: model.original_file_path,
-            tags: model.tags ?? [],
         }));
 
         const edges: DagEdge[] = [];
@@ -280,35 +278,6 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
             font-size: 11px; pointer-events: none; z-index: 100;
             display: none; white-space: nowrap;
         }
-
-        /* ---- Selection filter bar ---- */
-        #filter-bar {
-            position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-            display: none; align-items: center; gap: 6px; z-index: 20;
-            background: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-widget-border, #555);
-            border-radius: 4px; padding: 3px 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            min-width: 260px; max-width: 480px;
-        }
-        #filter-input {
-            flex: 1; background: transparent; border: none; outline: none;
-            color: var(--vscode-editor-foreground);
-            font-family: var(--vscode-font-family); font-size: 12px;
-        }
-        #filter-input::placeholder { color: var(--vscode-input-placeholderForeground, #888); }
-        #filter-clear {
-            background: none; border: none; color: var(--vscode-descriptionForeground);
-            cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; display: none;
-        }
-        #filter-clear:hover { color: var(--vscode-editor-foreground); }
-        #filter-match-count {
-            font-size: 10px; color: var(--vscode-descriptionForeground); white-space: nowrap;
-        }
-        #filter-error {
-            font-size: 10px; color: var(--vscode-errorForeground, #f48771);
-            white-space: nowrap; display: none;
-        }
     </style>
 </head>
 <body>
@@ -351,13 +320,6 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
     </div>
 
     <div id="tooltip"></div>
-
-    <div id="filter-bar">
-        <input id="filter-input" type="text" placeholder="+my_model, model+, tag:name ..." autocomplete="off" spellcheck="false"/>
-        <span id="filter-match-count"></span>
-        <span id="filter-error"></span>
-        <button id="filter-clear" title="Clear filter">&#10005;</button>
-    </div>
 </div>
 
 <script>
@@ -382,31 +344,6 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         if (e.target === svgEl || e.target === rootGroup) { fitView(); }
     });
 
-    // ---- Filter bar DOM refs ----
-    var filterBarEl   = document.getElementById('filter-bar');
-    var filterInputEl = document.getElementById('filter-input');
-    var filterClearEl = document.getElementById('filter-clear');
-    var filterCountEl = document.getElementById('filter-match-count');
-    var filterErrorEl = document.getElementById('filter-error');
-
-    filterInputEl.addEventListener('input', function() {
-        filterQuery = filterInputEl.value;
-        filterClearEl.style.display = filterQuery ? 'inline' : 'none';
-        applyDbtFilter();
-    });
-    filterClearEl.addEventListener('click', function() {
-        filterInputEl.value = ''; filterQuery = '';
-        filterClearEl.style.display = 'none';
-        applyDbtFilter();
-    });
-    filterInputEl.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            filterInputEl.value = ''; filterQuery = '';
-            filterClearEl.style.display = 'none';
-            applyDbtFilter(); filterInputEl.blur();
-        }
-    });
-
     // ---- State ----
     var allNodes     = [];   // full graph data from manifest
     var allEdges     = [];
@@ -415,8 +352,6 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
     var layoutData   = null;
     var fullVB       = null;
     var activeNodeId = null;
-    var filterQuery  = '';   // current text in the filter input
-    var filterActive = false; // true when a non-empty filter is applied
 
     // Layout constants
     var NODE_W    = 150;
@@ -509,7 +444,6 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         emptyState.style.display = 'flex';
         controlsEl.style.display = 'none';
         legendEl.style.display = 'none';
-        filterBarEl.style.display = 'none';
         var btn = document.getElementById('compile-btn');
         if (projectName) {
             emptyTitle.textContent = 'No DAG Available for ' + projectName;
@@ -527,145 +461,9 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
         svgEl.style.display = 'block';
         controlsEl.style.display = 'flex';
         legendEl.style.display = 'flex';
-        filterBarEl.style.display = 'flex';
         allNodes = data.nodes;
         allEdges = data.edges;
-        activeNodeId = data.highlightedNodeId; // always track the current file's node
-        if (filterActive && filterQuery.trim()) {
-            applyDbtFilter();
-        } else {
-            applySubgraphFilter(data.highlightedNodeId);
-        }
-    }
-
-    // ---- dbt selection syntax filter ----
-    // NOTE: This logic mirrors dagFilter.ts (TypeScript version with Vitest tests).
-    // Changes here must also be applied to dagFilter.ts and vice versa.
-
-    function parseSelectorToken(token) {
-        token = token.trim();
-        if (token.startsWith('tag:')) {
-            return { type: 'tag', value: token.slice(4), upstreamDepth: 0, downstreamDepth: 0 };
-        }
-        var upstreamDepth = 0, downstreamDepth = 0, modelName = token;
-        var leadMatch = modelName.match(/^(\d*)(\+)/);
-        if (leadMatch) {
-            upstreamDepth = leadMatch[1] === '' ? Infinity : parseInt(leadMatch[1], 10);
-            modelName = modelName.slice(leadMatch[0].length);
-        }
-        var trailMatch = modelName.match(/(\+)(\d*)$/);
-        if (trailMatch) {
-            downstreamDepth = trailMatch[2] === '' ? Infinity : parseInt(trailMatch[2], 10);
-            modelName = modelName.slice(0, modelName.length - trailMatch[0].length);
-        }
-        return { type: 'name', value: modelName, upstreamDepth: upstreamDepth, downstreamDepth: downstreamDepth };
-    }
-
-    function bfsDepthLimited(adjMap, roots, maxDepth) {
-        var visited = new Set();
-        if (maxDepth === 0) { return visited; }
-        var queue = roots.map(function(r) { return { id: r, depth: 0 }; });
-        while (queue.length) {
-            var item = queue.shift();
-            if (visited.has(item.id)) { continue; }
-            visited.add(item.id);
-            if (item.depth < maxDepth) {
-                (adjMap.get(item.id) || []).forEach(function(neighbor) {
-                    if (!visited.has(neighbor)) { queue.push({ id: neighbor, depth: item.depth + 1 }); }
-                });
-            }
-        }
-        return visited;
-    }
-
-    function resolveSingleSelector(selector, adj, radj) {
-        var seedIds = new Set();
-        if (selector.type === 'tag') {
-            allNodes.forEach(function(n) {
-                if (n.tags && n.tags.indexOf(selector.value) !== -1) { seedIds.add(n.id); }
-            });
-        } else {
-            var seed = null;
-            for (var i = 0; i < allNodes.length; i++) {
-                if (allNodes[i].name === selector.value) { seed = allNodes[i]; break; }
-            }
-            if (seed) { seedIds.add(seed.id); }
-        }
-        if (seedIds.size === 0) { return seedIds; }
-        var result = new Set(seedIds);
-        seedIds.forEach(function(seedId) {
-            if (selector.upstreamDepth > 0) {
-                bfsDepthLimited(radj, [seedId], selector.upstreamDepth).forEach(function(id) { result.add(id); });
-            }
-            if (selector.downstreamDepth > 0) {
-                bfsDepthLimited(adj, [seedId], selector.downstreamDepth).forEach(function(id) { result.add(id); });
-            }
-        });
-        return result;
-    }
-
-    function applyDbtFilter() {
-        var query = filterQuery.trim();
-        filterErrorEl.style.display = 'none';
-        filterErrorEl.textContent = '';
-
-        if (!query) {
-            filterActive = false;
-            filterCountEl.textContent = '';
-            applySubgraphFilter(activeNodeId);
-            return;
-        }
-        filterActive = true;
-
-        var adj  = new Map();
-        var radj = new Map();
-        allNodes.forEach(function(n) { adj.set(n.id, []); radj.set(n.id, []); });
-        allEdges.forEach(function(e) {
-            if (adj.has(e.source) && adj.has(e.target)) {
-                adj.get(e.source).push(e.target);
-                radj.get(e.target).push(e.source);
-            }
-        });
-
-        var tokens = query.split(/\s+/).filter(function(t) { return t.length > 0; });
-        var unionIds = new Set();
-        var hasError = false;
-        // Fix 5: use a for loop so we can break on the first bad token
-        for (var ti = 0; ti < tokens.length; ti++) {
-            var token = tokens[ti];
-            var selector;
-            try {
-                selector = parseSelectorToken(token);
-            } catch(err) {
-                hasError = true;
-                filterErrorEl.textContent = 'Invalid: "' + token + '"';
-                filterErrorEl.style.display = 'inline';
-                break;
-            }
-            // Fix 7: reject empty model name or empty tag: value
-            if ((selector.type === 'name' && !selector.value) ||
-                (selector.type === 'tag'  && !selector.value)) {
-                hasError = true;
-                filterErrorEl.textContent = 'Invalid: "' + token + '"';
-                filterErrorEl.style.display = 'inline';
-                break;
-            }
-            resolveSingleSelector(selector, adj, radj).forEach(function(id) { unionIds.add(id); });
-        }
-
-        var filteredNodes = allNodes.filter(function(n) { return unionIds.has(n.id); });
-        var filteredEdges = allEdges.filter(function(e) { return unionIds.has(e.source) && unionIds.has(e.target); });
-        currentNodes = filteredNodes;
-        currentEdges = filteredEdges;
-        // Fix 4: hide count when there is a validation error
-        filterCountEl.textContent = hasError ? '' : filteredNodes.length + ' model' + (filteredNodes.length !== 1 ? 's' : '');
-
-        // Fix 1: always clear the canvas when nothing matched (regardless of error state)
-        if (filteredNodes.length === 0) {
-            rootGroup.innerHTML = '';
-            return;
-        }
-        layoutAndRender(null);
+        applySubgraphFilter(data.highlightedNodeId);
     }
 
     // ---- Subgraph filtering ----
@@ -722,18 +520,7 @@ export class DagViewProvider implements vscode.WebviewViewProvider {
 
     // ---- Highlight & focus ----
     function highlightNode(nodeId) {
-        activeNodeId = nodeId;
-        if (!filterActive) {
-            applySubgraphFilter(nodeId);
-        } else if (nodeId && layoutData && layoutData.has(nodeId)) {
-            // Fix 2: node is visible in the current filter result — zoom to it
-            var neighbors = new Set();
-            currentEdges.forEach(function(e) {
-                if (e.target === nodeId) { neighbors.add(e.source); }
-                if (e.source === nodeId) { neighbors.add(e.target); }
-            });
-            zoomToNeighborhood(nodeId, neighbors);
-        }
+        applySubgraphFilter(nodeId);
     }
 
     function zoomToNeighborhood(nodeId, neighbors) {
